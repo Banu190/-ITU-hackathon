@@ -6,8 +6,8 @@ export type Transfer = {
   sender: string;
   receiver: string;
   amount_tiyn: number;
-  risk_score: number;
-  risk_level: RiskLevel;
+  risk_score?: number | null;
+  risk_level?: RiskLevel | null;
   reasons: {
     code: string;
     title: string;
@@ -39,20 +39,24 @@ export type Simulation = {
   affected_turnover_tiyn: number;
 };
 
+export class ApiUnavailableError extends Error {}
+
 export async function request<T>(url: string, options?: RequestInit): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url, options);
   } catch (error) {
     if (options?.signal?.aborted) throw error;
-    throw new Error("Не удалось подключиться к серверу Fraud Replay.");
+    throw new ApiUnavailableError("Не удалось подключиться к серверу Fraud Replay.");
   }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const fallback = response.status >= 500
-      ? "Сервер Fraud Replay недоступен. Проверьте запуск backend."
+      ? "Сервер Fraud Replay недоступен."
       : `Запрос завершился ошибкой (${response.status}).`;
-    throw new Error(typeof body?.detail === "string" ? body.detail : fallback);
+    const message = typeof body?.detail === "string" ? body.detail : fallback;
+    if (response.status >= 500) throw new ApiUnavailableError(message);
+    throw new Error(message);
   }
   return response.json();
 }

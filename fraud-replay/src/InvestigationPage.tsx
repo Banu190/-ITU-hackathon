@@ -21,7 +21,7 @@ export function CaseList({ cases }: { cases: Investigation[] }) {
   );
 }
 
-function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint: string }) {
+function Replay({ transactions, endpoint, offline }: { transactions: Transfer[]; endpoint: string; offline: boolean }) {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [simulation, setSimulation] = useState<Simulation | null>(null);
@@ -126,7 +126,7 @@ function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint
         <section className="panel">
           <h2>What-if</h2>
           <p className="muted">Проверьте, какие последующие переводы в цепочке затронет условная остановка выбранной операции.</p>
-          <button className="button" disabled={!selected || busy} onClick={() => selected && void runSimulation(selected)}>
+          <button className="button" disabled={!selected || busy || offline} onClick={() => selected && void runSimulation(selected)}>
             {busy ? "Считаем…" : "Смоделировать остановку"}
           </button>
           {error && <p className="error" role="alert">{error}</p>}
@@ -143,10 +143,11 @@ function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint
   );
 }
 
-export default function InvestigationPage({ dataset, investigation, page }: {
+export default function InvestigationPage({ dataset, investigation, page, offline = false }: {
   dataset: Dataset;
   investigation: Investigation;
   page: CasePage;
+  offline?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState(investigation.suspicious_transactions[0]);
   const ids = new Set(investigation.transaction_ids);
@@ -195,14 +196,14 @@ export default function InvestigationPage({ dataset, investigation, page }: {
           <a className="button secondary" href={`#/investigation/${investigation.case_id}`} aria-current={page === "investigation" ? "page" : undefined}>Детали</a>
           <a className="button secondary" href={`#/graph/${investigation.case_id}`} aria-current={page === "graph" ? "page" : undefined}>Граф</a>
           <a className="button secondary" href={`#/replay/${investigation.case_id}`} aria-current={page === "replay" ? "page" : undefined}>Replay</a>
-          <button className="button" disabled={reportBusy} onClick={() => void downloadReport()}>
+          <button className="button" disabled={reportBusy || offline} onClick={() => void downloadReport()}>
             {reportBusy ? "Формируем PDF…" : "Скачать PDF"}
           </button>
         </div>
         {reportError && <p className="error" role="alert">{reportError}</p>}
       </section>
 
-      {page === "replay" ? <Replay transactions={transactions} endpoint={endpoint} /> : (
+      {page === "replay" ? <Replay transactions={transactions} endpoint={endpoint} offline={offline} /> : (
         <div className="workspace">
           <section className="panel">
             {page === "graph" ? <>

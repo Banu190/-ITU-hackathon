@@ -1,9 +1,46 @@
 import { useMemo, useState } from "react";
-import { Background, Controls, MarkerType, Position, ReactFlow } from "@xyflow/react";
-import type { Edge, Node } from "@xyflow/react";
+import {
+  Background, BaseEdge, Controls, EdgeLabelRenderer, getSmoothStepPath, MarkerType, Position, ReactFlow,
+} from "@xyflow/react";
+import type { Edge, EdgeProps, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { formatAmount } from "./api";
 import type { Transfer } from "./api";
+
+type TransferEdge = Edge<{ select: () => void }, "transfer">;
+
+function TransferEdgeView({
+  id, source, target, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
+  label, data, markerEnd, style, interactionWidth,
+}: EdgeProps<TransferEdge>) {
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
+  });
+  const horizontal = Math.abs(sourceY - targetY) < 1;
+  const labelPosition = horizontal
+    ? `translate(${labelX}px, ${labelY - 8}px) translate(-50%, -100%)`
+    : `translate(${labelX + 10}px, ${labelY}px) translateY(-50%)`;
+
+  return (
+    <>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={interactionWidth} />
+      <EdgeLabelRenderer>
+        <button
+          type="button"
+          className="transfer-edge-label nodrag nopan"
+          style={{ transform: labelPosition }}
+          aria-label={`${source} → ${target} · ${label}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            data?.select();
+          }}
+        >{label}</button>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const edgeTypes = { transfer: TransferEdgeView };
 
 function layout(transactions: Transfer[]) {
   const columns = new Map<string, number>();
@@ -59,20 +96,20 @@ export default function TransferGraph({ transactions, visibleCount = transaction
     ].filter(Boolean).join(" "),
     ariaLabel: `Счёт ${node.id}`,
   }));
-  const edges = Array.from(groups, ([id, group]): Edge => {
+  const edges = Array.from(groups, ([id, group]): TransferEdge => {
     const latest = group[group.length - 1];
     const active = group.some((tx) => tx.transaction_id === selectedId);
     const blocked = group.filter((tx) => affected?.has(tx.transaction_id)).length;
     const color = blocked ? "#fba268" : active ? "#8ee4ff" : "#668eb7";
-    const label = group.length === 1 ? formatAmount(latest.amount_tiyn) : `Переводов: ${group.length}`;
+    const summary = group.length === 1 ? formatAmount(latest.amount_tiyn) : `Переводов: ${group.length}`;
+    const label = blocked ? `${summary} · остановлено ${blocked}` : summary;
     return {
-      id, source: latest.sender, target: latest.receiver, type: "smoothstep",
+      id, source: latest.sender, target: latest.receiver, type: "transfer",
       zIndex: active ? 1 : 0,
-      label: blocked ? `${label} · остановлено ${blocked}` : label,
+      label, focusable: false,
+      data: { select: () => onSelect(latest.transaction_id) },
       ariaLabel: `${latest.sender} → ${latest.receiver} · ${label}`,
       style: { stroke: color, strokeWidth: active ? 3 : 2, strokeDasharray: blocked ? "6 4" : undefined },
-      labelStyle: { fill: "#e2eaf5", fontSize: 11 },
-      labelBgStyle: { fill: "#111e32" },
       markerEnd: { type: MarkerType.ArrowClosed, color },
     };
   });
@@ -86,6 +123,7 @@ export default function TransferGraph({ transactions, visibleCount = transaction
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          edgeTypes={edgeTypes}
           style={{ colorScheme: "dark" }}
           fitView
           fitViewOptions={{ padding: "28px", maxZoom: 1.15 }}
@@ -97,10 +135,7 @@ export default function TransferGraph({ transactions, visibleCount = transaction
           zoomOnScroll={false}
           onlyRenderVisibleElements={positions.length > 100}
           onNodeClick={(_, node) => setAccount(node.id === account ? "" : node.id)}
-          onEdgeClick={(_, edge) => {
-            const group = groups.get(edge.id);
-            if (group?.length) onSelect(group[group.length - 1].transaction_id);
-          }}
+          onEdgeClick={(_, edge) => edge.data?.select()}
           onPaneClick={() => setAccount("")}
         >
           <Background gap={18} color="#294057" />

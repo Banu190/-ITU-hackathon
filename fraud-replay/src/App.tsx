@@ -1,13 +1,14 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { errorMessage, request } from "./api";
+import { ApiUnavailableError, errorMessage, request } from "./api";
 import type { Dataset } from "./api";
+import Dashboard from "./Dashboard";
 import InvestigationPage, { CaseList } from "./InvestigationPage";
 import type { CasePage } from "./InvestigationPage";
-import TransactionsPage, { TransfersTable } from "./TransactionsPage";
+import TransactionsPage from "./TransactionsPage";
 import "./App.css";
 
 const navigation = {
-  dashboard: { label: "Обзор", icon: "▦", description: "Мониторинг демонстрационных транзакций" },
+  dashboard: { label: "Обзор", icon: "▦" },
   transactions: { label: "Транзакции", icon: "⇄", description: "Импорт и проверка переводов" },
   investigation: { label: "Расследования", icon: "◎", description: "Сигналы риска и связанные переводы" },
   graph: { label: "Граф переводов", icon: "⌘", description: "Маршруты переводов между счетами" },
@@ -15,6 +16,12 @@ const navigation = {
 };
 
 type Page = keyof typeof navigation;
+const apiEnabled = import.meta.env.VITE_API_ENABLED === "true";
+
+async function loadDemo() {
+  const { default: dataset } = await import("./demoDataset");
+  return { dataset, offline: true };
+}
 
 function subscribe(onChange: () => void) {
   window.addEventListener("hashchange", onChange);
@@ -31,76 +38,47 @@ function linkTo(page: Page, caseId?: string) {
   return `#/${page}/${caseId}`;
 }
 
-function Dashboard({ dataset }: { dataset: Dataset }) {
-  const suspicious = dataset.transactions.filter((tx) => tx.risk_level !== "low");
-  const highRisk = suspicious.filter((tx) => tx.risk_level === "high");
-  const stats = [
-    { label: "Всего переводов", count: dataset.transactions.length },
-    { label: "Требуют проверки", count: suspicious.length, tone: "stat-warn" },
-    { label: "Высокий риск", count: highRisk.length, tone: "stat-high" },
-    { label: "Расследования", count: dataset.cases.length },
-  ];
-
-  return (
-    <>
-      <section className="welcome">
-        <div>
-          <h2>Мониторинг банковских переводов</h2>
-          <p>Активный набор · {dataset.source}</p>
-        </div>
-        <a className="button" href="#/transactions">Импорт CSV</a>
-      </section>
-      <section className="stats" aria-label="Сводка по набору">
-        {stats.map(({ label, count, tone }) => (
-          <div className="stat-card" key={label}>
-            <p>{label}</p><strong className={tone}>{count.toLocaleString("ru-KZ")}</strong>
-          </div>
-        ))}
-      </section>
-      <section className="panel">
-        <div className="section-header">
-          <div><h2>Расследования</h2><p>Оценка риска помогает определить приоритет проверки.</p></div>
-          <a className="button secondary" href="#/investigation">Все расследования</a>
-        </div>
-        <CaseList cases={dataset.cases.slice(0, 4)} />
-      </section>
-      <section className="panel">
-        <div className="section-header">
-          <h2>Последние операции для проверки</h2>
-          <a className="button secondary" href="#/transactions">Все операции</a>
-        </div>
-        <TransfersTable transactions={suspicious.slice(-8).reverse()} onSelect={(id) => {
-          window.location.hash = `#/transactions?${new URLSearchParams({ tx: id })}`;
-        }} />
-      </section>
-    </>
-  );
-}
-
 export default function App() {
   const hash = useSyncExternalStore(subscribe, currentHash);
   const [path, query] = hash.replace(/^#\/?/, "").split("?", 2);
   const [segment, caseId] = path.split("/");
   const page: Page = Object.hasOwn(navigation, segment) ? segment as Page : "dashboard";
-  const [dataset, setDataset] = useState<Dataset | null>(null);
+  const [current, setCurrent] = useState<{ dataset: Dataset; offline: boolean } | null>(null);
   const [loadingError, setLoadingError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    request<Dataset>("/api/datasets/current", { signal: controller.signal })
-      .then((result) => { if (!controller.signal.aborted) setDataset(result); })
+    const load = apiEnabled
+      ? request<Dataset>("/api/datasets/current", { signal: controller.signal })
+        .then((dataset) => ({ dataset, offline: false }))
+        .catch((error: unknown) => {
+          if (controller.signal.aborted || !(error instanceof ApiUnavailableError)) throw error;
+          return loadDemo();
+        })
+      : loadDemo();
+    load
+      .then((result) => { if (!controller.signal.aborted) setCurrent(result); })
       .catch((error) => { if (!controller.signal.aborted) setLoadingError(errorMessage(error)); });
     return () => controller.abort();
   }, [attempt]);
 
+  const dataset = current?.dataset;
+  const offline = current?.offline ?? false;
   const item = dataset?.cases.find((entry) => entry.case_id === caseId);
   const investigation = caseId ? item : dataset?.cases[0];
   const selectedCaseId = item?.case_id;
-  const initialTransfer = new URLSearchParams(query).get("tx") ?? "";
+  const params = new URLSearchParams(query);
+  const initialTransfer = params.get("tx") ?? "";
+  const showTransfers = params.get("view") === "transfers";
+
+  function retry() {
+    setLoadingError("");
+    setAttempt((value) => value + 1);
+  }
 
   return (
-    <div className="app">
+    <div className={page === "dashboard" ? "app app-overview" : "app"}>
       <aside className="sidebar">
         <a className="logo" href="#/"><span aria-hidden="true">◈</span> Fraud Replay</a>
         <nav aria-label="Разделы">
@@ -111,26 +89,50 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <div className="sidebar-bottom"><a href="/docs" target="_blank" rel="noreferrer">Документация API ↗</a></div>
       </aside>
 
-      <main className="main">
+      <main className={page === "dashboard" ? "main dashboard-main" : "main"}>
         <header className="topbar">
-          <div><h1>{navigation[page].label}</h1><p>{navigation[page].description}</p></div>
-          <span className="mode"><i aria-hidden="true" />Демо</span>
+          {page === "dashboard" ? (
+            <>
+              <div>
+                <h1>Обзор расследований</h1>
+                {dataset && <p>Активный набор · {dataset.source}</p>}
+              </div>
+              <a className="button" href={linkTo("transactions")}>
+                <span aria-hidden="true">↑</span> Загрузить CSV
+              </a>
+            </>
+          ) : (
+            <>
+              <div><h1>{navigation[page].label}</h1><p>{navigation[page].description}</p></div>
+              <span className="mode"><i aria-hidden="true" />Демо</span>
+            </>
+          )}
         </header>
+
+        {offline && (
+          <div className="offline-notice">
+            <p role="status"><strong>Демонстрационные данные.</strong> Для импорта CSV, симуляции и PDF нужен сервер.</p>
+            {apiEnabled && <button type="button" className="button secondary" onClick={retry}>Подключиться</button>}
+          </div>
+        )}
 
         {!dataset ? (
           <section className="panel" aria-live="polite">
             {loadingError ? <><p className="error">{loadingError}</p>
-              <button className="button" onClick={() => { setLoadingError(""); setAttempt(attempt + 1); }}>Повторить</button>
+              <button className="button" onClick={retry}>Повторить</button>
             </> : <p className="muted">Загружаем транзакции…</p>}
           </section>
-        ) : page === "dashboard" ? <Dashboard dataset={dataset} />
-          : page === "transactions" ? <TransactionsPage key={initialTransfer} dataset={dataset} onDataset={setDataset} initialId={initialTransfer} />
+        ) : page === "dashboard" ? <Dashboard key={dataset.dataset_id} dataset={dataset} />
+          : page === "transactions" ? (
+            <TransactionsPage key={initialTransfer} dataset={dataset}
+              onDataset={(next) => setCurrent({ dataset: next, offline: false })}
+              initialId={initialTransfer} showTransfers={showTransfers} offline={offline} />
+          )
           : investigation && (page !== "investigation" || caseId) ? (
             <InvestigationPage key={`${dataset.dataset_id}-${investigation.case_id}-${page}`}
-              dataset={dataset} investigation={investigation} page={page as CasePage} />
+              dataset={dataset} investigation={investigation} page={page as CasePage} offline={offline} />
           ) : (
             <section className="panel">
               <h2>{caseId ? "Расследование не найдено в активном наборе" : "Список расследований"}</h2>
