@@ -1,0 +1,52 @@
+[project]
+name = "fraud-replay-backend"
+version = "0.1.0"
+description = "Fraud Replay banking investigation backend"
+requires-python = ">=3.12,<3.14"
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+test = [
+  "httpx==0.28.1",
+  "pytest==9.2.0",
+  "pytest-asyncio==1.5.0",
+  "pytest-cov==7.1.0",
+  "ruff==0.17.6",
+]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+  "integration: requires a dedicated PostgreSQL test database",
+  "security: security and authorization behavior",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S105", "S106"]
+"scripts/*.py" = ["S603"]
