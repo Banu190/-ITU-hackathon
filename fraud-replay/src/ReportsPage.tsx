@@ -1,12 +1,17 @@
 import { ArrowRight, Download, FileText } from "lucide-react";
 import { useState } from "react";
-import { downloadBlob, downloadCaseReport, errorMessage } from "./api";
+import { Link } from "react-router";
+import { errorMessage } from "./api";
 import type { Dataset, Investigation } from "./api";
 import { linkTo } from "./navigation";
 import { RiskBadge } from "./TransactionsPage";
 import { PageHeading, PanelHeading, StateMessage } from "./ui";
 
-export default function ReportsPage({ dataset, demo }: { dataset: Dataset; demo: boolean }) {
+export default function ReportsPage({ dataset, downloadReport, reportFormat = "PDF" }: {
+  dataset: Dataset;
+  downloadReport: (investigation: Investigation) => Promise<void>;
+  reportFormat?: "PDF" | "CSV";
+}) {
   const [selectedId, setSelectedId] = useState(dataset.cases[0]?.case_id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -16,12 +21,7 @@ export default function ReportsPage({ dataset, demo }: { dataset: Dataset; demo:
     setBusy(true);
     setError("");
     try {
-      if (demo) {
-        const data = `case_id,risk_score,risk_level,transactions,suspicious\n${report.case_id},${report.risk_score},${report.risk_level},${report.transaction_ids.length},${report.suspicious_transactions.length}\n`;
-        downloadBlob(new Blob([data], { type: "text/csv;charset=utf-8" }), `demo-${report.case_id}.csv`);
-      } else {
-        await downloadCaseReport(dataset, report);
-      }
+      await downloadReport(report);
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -30,7 +30,7 @@ export default function ReportsPage({ dataset, demo }: { dataset: Dataset; demo:
   }
 
   return <>
-    <PageHeading title="Отчёты" description={demo ? "Демонстрационные сводки по расследованиям и экспорт в CSV." : "Сводки по расследованиям и экспорт в PDF."} />
+    <PageHeading title="Отчёты" description={`Сводки по расследованиям и экспорт в ${reportFormat}.`} />
     <div className="workspace reports-workspace">
       <section className="panel data-panel">
         <PanelHeading title="Отчёты расследований" description={dataset.source} />
@@ -55,9 +55,9 @@ export default function ReportsPage({ dataset, demo }: { dataset: Dataset; demo:
         </dl>
         <div className="toolbar">
           <button type="button" className="button" disabled={busy} onClick={() => void exportReport(selected)}>
-            <Download size={16} />{busy ? "Готовим отчёт…" : demo ? "Скачать CSV" : "Скачать PDF"}
+            <Download size={16} />{busy ? "Готовим отчёт…" : `Скачать ${reportFormat}`}
           </button>
-          <a className="button secondary" href={linkTo("investigation", selected.case_id)}>Расследование <ArrowRight size={14} /></a>
+          <Link className="button secondary" to={linkTo("investigation", selected.case_id)}>Расследование <ArrowRight size={14} /></Link>
         </div>
         {error && <p className="error" role="alert">{error}</p>}
       </section>}

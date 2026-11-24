@@ -1,6 +1,7 @@
-import { Bell, ChevronDown, Menu, Moon, PanelLeftClose, ShieldCheck, Sun, UserRound, X } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Moon, PanelLeftClose, ShieldCheck, Sun, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import type { Dataset } from "./api";
 import { linkTo, navigation, pagesByRole } from "./navigation";
 import type { Page } from "./navigation";
@@ -26,13 +27,15 @@ function Avatar({ name }: { name: string }) {
   return <span className="avatar" aria-hidden="true">{initials || <UserRound size={16} />}</span>;
 }
 
-export default function Layout({ page, activeCaseId, session, dataset, theme, onToggleTheme, children }: {
+export default function Layout({ page, activeCaseId, session, dataset, theme, onToggleTheme, onLogout, label, children }: {
   page: Page;
   activeCaseId?: string;
   session: Session;
   dataset: Dataset | null;
   theme: Theme;
   onToggleTheme: () => void;
+  onLogout: () => void;
+  label?: string;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -74,10 +77,10 @@ export default function Layout({ page, activeCaseId, session, dataset, theme, on
           aria-label={expanded ? "Свернуть навигацию" : "Развернуть навигацию"} aria-expanded={expanded}>
           {expanded ? <PanelLeftClose size={18} /> : <Menu size={18} />}
         </button>
-        <a href={linkTo("dashboard")} aria-label="Fraud Replay, главная"><Brand /></a>
+        <Link to={linkTo("dashboard")} aria-label="Fraud Replay, главная"><Brand /></Link>
       </div>
       <div className="header-controls" ref={controls}>
-        {session.mode === "demo" && <span className="mode"><i />Демо</span>}
+        {label && <small className="workspace-label">{label}</small>}
         <ThemeButton theme={theme} onToggle={onToggleTheme} />
         <div className="header-control">
           <button type="button" className="icon-button notification-button" aria-label="Уведомления"
@@ -90,10 +93,10 @@ export default function Layout({ page, activeCaseId, session, dataset, theme, on
             </div>
             {highRiskCases.length ? <>
               <p>Расследования с высоким риском</p>
-              {highRiskCases.slice(-4).reverse().map((item) => <a key={item.case_id} className="popover-row"
-                href={linkTo("investigation", item.case_id)} onClick={() => setPanel(null)}>
+              {highRiskCases.slice(-4).reverse().map((item) => <Link key={item.case_id} className="popover-row"
+                to={linkTo("investigation", item.case_id)} onClick={() => setPanel(null)}>
                 <span>{item.case_id}</span><strong className="risk-text-high">{item.risk_score} / 100</strong>
-              </a>)}
+              </Link>)}
             </> : <p>Новых сигналов высокого риска нет.</p>}
           </div>}
         </div>
@@ -104,7 +107,8 @@ export default function Layout({ page, activeCaseId, session, dataset, theme, on
           </button>
           {panel === "profile" && <div className="header-popover profile-popover">
             <div className="popover-account"><strong>{session.name}</strong><span>{roles[session.role]}</span></div>
-            <a className="popover-row" href={linkTo("profile")} onClick={() => setPanel(null)}><span>Открыть профиль</span><UserRound size={15} /></a>
+            <Link className="popover-row" to={linkTo("profile")} onClick={() => setPanel(null)}><span>Открыть профиль</span><UserRound size={15} /></Link>
+            <button className="popover-row popover-button" type="button" onClick={onLogout}>Выйти <LogOut size={15} aria-hidden="true" /></button>
           </div>}
         </div>
       </div>
@@ -114,15 +118,15 @@ export default function Layout({ page, activeCaseId, session, dataset, theme, on
         {allowed.filter((key) => key !== "profile").map((key) => {
           const { label, icon: Icon } = navigation[key];
           const caseId = key === "graph" || key === "replay" ? activeCaseId : undefined;
-          return <a key={key} href={linkTo(key, caseId)} className={key === "employees" ? "nav-split" : undefined} onClick={closeMobileNavigation}
+          return <Link key={key} to={linkTo(key, caseId)} className={key === "employees" ? "nav-split" : undefined} onClick={closeMobileNavigation}
             aria-current={key === page ? "page" : undefined} aria-label={label} title={label}>
             <Icon size={18} aria-hidden="true" /><span>{label}</span>
-          </a>;
+          </Link>;
         })}
       </nav>
       <nav className="sidebar-bottom" aria-label="Профиль">
-        <a href={linkTo("profile")} aria-current={page === "profile" ? "page" : undefined} onClick={closeMobileNavigation}
-          aria-label="Профиль" title="Профиль"><UserRound size={18} aria-hidden="true" /><span>Профиль</span></a>
+        <Link to={linkTo("profile")} aria-current={page === "profile" ? "page" : undefined} onClick={closeMobileNavigation}
+          aria-label="Профиль" title="Профиль"><UserRound size={18} aria-hidden="true" /><span>Профиль</span></Link>
       </nav>
     </aside>
     <main className="main" id="workspace" tabIndex={-1}>{children}</main>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
-import { caseEndpoint, downloadCaseReport, errorMessage, formatAmount, formatDate, request } from "./api";
+import { Link, useNavigate } from "react-router";
+import { errorMessage, formatAmount, formatDate } from "./api";
 import type { Dataset, Investigation, Simulation, Transfer } from "./api";
 import { linkTo } from "./navigation";
 import TransferGraph from "./TransferGraph";
@@ -8,7 +9,11 @@ import { RiskBadge, TransferDetails, TransfersTable } from "./TransactionsPage";
 
 export type CasePage = "investigation" | "graph" | "replay";
 
-function Replay({ transactions, endpoint, showWhatIf = false }: { transactions: Transfer[]; endpoint: string; showWhatIf?: boolean }) {
+function Replay({ transactions, simulate, showWhatIf = false }: {
+  transactions: Transfer[];
+  simulate?: (transfer: Transfer) => Promise<Simulation>;
+  showWhatIf?: boolean;
+}) {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [simulation, setSimulation] = useState<Simulation | null>(null);
@@ -53,12 +58,12 @@ function Replay({ transactions, endpoint, showWhatIf = false }: { transactions: 
   }
 
   async function runSimulation(transfer: Transfer) {
+    if (!simulate) return;
     setPlaying(false);
     setBusy(true);
     setError("");
     try {
-      const query = new URLSearchParams({ transaction_id: transfer.transaction_id });
-      setSimulation(await request<Simulation>(`${endpoint}/what-if?${query}`));
+      setSimulation(await simulate(transfer));
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -110,7 +115,7 @@ function Replay({ transactions, endpoint, showWhatIf = false }: { transactions: 
           {selected ? <TransferDetails transfer={selected} onSelect={select} />
             : <><h2>Детали события</h2><p className="muted">Запустите Replay или выберите перевод на шкале.</p></>}
         </section>
-        {showWhatIf && <section className="panel">
+        {showWhatIf && simulate && <section className="panel">
           <h2>What-if</h2>
           <p className="muted">Проверьте, какие последующие переводы в цепочке затронет условная остановка выбранной операции.</p>
           <button className="button" disabled={!selected || busy} onClick={() => selected && void runSimulation(selected)}>
@@ -130,24 +135,26 @@ function Replay({ transactions, endpoint, showWhatIf = false }: { transactions: 
   );
 }
 
-export default function InvestigationPage({ dataset, investigation, page, readOnly, demo }: {
+export default function InvestigationPage({ dataset, investigation, page, readOnly, downloadReport, reportFormat = "PDF", simulate }: {
   dataset: Dataset;
   investigation: Investigation;
   page: CasePage;
   readOnly: boolean;
-  demo: boolean;
+  downloadReport: (investigation: Investigation) => Promise<void>;
+  reportFormat?: "PDF" | "CSV";
+  simulate?: (investigation: Investigation, transfer: Transfer) => Promise<Simulation>;
 }) {
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(investigation.suspicious_transactions[0] ?? investigation.transaction_ids[0]);
   const ids = new Set(investigation.transaction_ids);
   const transactions = dataset.transactions.filter((tx) => ids.has(tx.transaction_id));
   const selected = transactions.find((tx) => tx.transaction_id === selectedId);
-  const endpoint = caseEndpoint(dataset, investigation);
 
-  async function downloadReport() {
+  async function exportReport() {
     setReportBusy(true);
     setReportError("");
     try {
-      await downloadCaseReport(dataset, investigation);
+      await downloadReport(investigation);
     } catch (failure) {
       setReportError(errorMessage(failure));
     } finally {
@@ -167,23 +174,23 @@ export default function InvestigationPage({ dataset, investigation, page, readOn
         </div>
         <div className="toolbar case-toolbar">
           <label>Расследование
-            <select value={investigation.case_id} onChange={(event) => { window.location.hash = linkTo(page, event.target.value); }}>
+            <select value={investigation.case_id} onChange={(event) => void navigate(linkTo(page, event.target.value))}>
               {dataset.cases.map((item) => <option key={item.case_id} value={item.case_id}>{item.case_id} · {item.risk_score}/100</option>)}
             </select>
           </label>
           {!readOnly && <div className="case-tabs">
-            <a className="button secondary" href={linkTo("investigation", investigation.case_id)} aria-current={page === "investigation" ? "page" : undefined}>Детали</a>
-            <a className="button secondary" href={linkTo("graph", investigation.case_id)} aria-current={page === "graph" ? "page" : undefined}>Граф</a>
-            <a className="button secondary" href={linkTo("replay", investigation.case_id)} aria-current={page === "replay" ? "page" : undefined}>Replay</a>
+            <Link className="button secondary" to={linkTo("investigation", investigation.case_id)} aria-current={page === "investigation" ? "page" : undefined}>Детали</Link>
+            <Link className="button secondary" to={linkTo("graph", investigation.case_id)} aria-current={page === "graph" ? "page" : undefined}>Граф</Link>
+            <Link className="button secondary" to={linkTo("replay", investigation.case_id)} aria-current={page === "replay" ? "page" : undefined}>Replay</Link>
           </div>}
-          {!readOnly && !demo && <button className="button case-report" disabled={reportBusy} onClick={() => void downloadReport()}>
-            <Download size={15} />{reportBusy ? "Формируем PDF…" : "Скачать PDF"}
+          {!readOnly && <button className="button case-report" disabled={reportBusy} onClick={() => void exportReport()}>
+            <Download size={15} />{reportBusy ? "Готовим отчёт…" : `Скачать ${reportFormat}`}
           </button>}
         </div>
         {reportError && <p className="error" role="alert">{reportError}</p>}
       </section>
 
-      {page === "replay" ? <Replay transactions={transactions} endpoint={endpoint} /> : (
+      {page === "replay" ? <Replay transactions={transactions} simulate={simulate && ((transfer) => simulate(investigation, transfer))} /> : (
         <div className={`workspace ${page === "graph" ? "graph-workspace" : ""}`}>
           <section className="panel">
             {page === "graph" ? <>

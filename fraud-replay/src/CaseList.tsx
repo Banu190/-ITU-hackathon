@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router";
 import { formatDate } from "./api";
 import type { Investigation, Transfer } from "./api";
 import { linkTo } from "./navigation";
@@ -19,11 +20,11 @@ export default function CaseList({ cases, transactions, limit }: { cases: Invest
           <th scope="col">Последняя операция</th><th scope="col">Риск</th><th scope="col"><span className="sr-only">Открыть</span></th></tr></thead>
         <tbody>{rows.slice(0, limit ?? rows.length).map(({ item, lastActivity }) => (
           <tr key={item.case_id}>
-            <th scope="row"><a className="text-button" href={linkTo("investigation", item.case_id)}>{item.case_id}</a></th>
+            <th scope="row"><Link className="text-button" to={linkTo("investigation", item.case_id)}>{item.case_id}</Link></th>
             <td className="case-reasons">{item.reasons.join(" · ") || "—"}</td><td>{item.transaction_ids.length}</td>
             <td className="muted">{Number.isFinite(lastActivity) ? formatDate(new Date(lastActivity).toISOString()) : "—"}</td>
             <td><RiskBadge level={item.risk_level} score={item.risk_score} /></td>
-            <td><a className="icon-button small" href={linkTo("investigation", item.case_id)} aria-label={`Открыть ${item.case_id}`}><ArrowRight size={15} /></a></td>
+            <td><Link className="icon-button small" to={linkTo("investigation", item.case_id)} aria-label={`Открыть ${item.case_id}`}><ArrowRight size={15} /></Link></td>
           </tr>
         ))}</tbody>
       </table>

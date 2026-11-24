@@ -1,5 +1,6 @@
 import { ArrowRight, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 import { formatAmount, formatDate, riskLabels } from "./api";
 import type { Dataset, RiskLevel, Transfer } from "./api";
 import { linkTo } from "./navigation";
@@ -105,7 +106,7 @@ export default function TransactionsPage({ dataset, initialId = "" }: { dataset:
   return (
     <>
       <PageHeading title="Транзакции" description={dataset.source}>
-        <a className="button" href={linkTo("upload")}>Загрузить CSV <ArrowRight size={15} /></a>
+        <Link className="button" to={linkTo("upload")}>Загрузить CSV <ArrowRight size={15} /></Link>
       </PageHeading>
       <div className={selected ? "workspace transaction-workspace" : undefined}>
         <section className="panel data-panel">
@@ -138,7 +139,7 @@ export default function TransactionsPage({ dataset, initialId = "" }: { dataset:
             <button className="icon-button small" onClick={() => setSelectedId("")} aria-label="Закрыть детали"><X size={16} /></button>
           </PanelHeading>
           <TransferDetails transfer={selected} onSelect={setSelectedId} />
-          {matchingCase && <a className="button secondary" href={linkTo("investigation", matchingCase.case_id)}>Открыть {matchingCase.case_id} <ArrowRight size={15} /></a>}
+          {matchingCase && <Link className="button secondary" to={linkTo("investigation", matchingCase.case_id)}>Открыть {matchingCase.case_id} <ArrowRight size={15} /></Link>}
         </section>}
       </div>
     </>

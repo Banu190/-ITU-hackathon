@@ -1,5 +1,6 @@
 import { ArrowLeftRight, ArrowRight, FileText, SearchCheck, ShieldAlert, TriangleAlert, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 import { CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Dataset, RiskLevel, Transfer } from "./api";
 import CaseList from "./CaseList";
@@ -141,17 +142,17 @@ export default function Dashboard({ dataset, name, allowed }: { dataset: Dataset
     <div className="dashboard-grid">
       <section className="panel case-table-panel">
         <PanelHeading title="Последние расследования">
-          <a className="button secondary compact-button" href={linkTo("investigation")}>Все расследования <ArrowRight size={14} /></a>
+          <Link className="button secondary compact-button" to={linkTo("investigation")}>Все расследования <ArrowRight size={14} /></Link>
         </PanelHeading>
         <CaseList cases={dataset.cases} transactions={dataset.transactions} limit={5} />
       </section>
       <section className="panel quick-actions">
         <PanelHeading title="Быстрые действия" />
         <div className="action-list">{actions.map(({ page, title, detail, icon: Icon }) => (
-          <a className={`action-tile ${page === "upload" ? "action-primary" : ""}`} key={page} href={linkTo(page)}>
+          <Link className={`action-tile ${page === "upload" ? "action-primary" : ""}`} key={page} to={linkTo(page)}>
             <span className="action-icon"><Icon size={17} aria-hidden="true" /></span>
             <span><strong>{title}</strong><small>{detail}</small></span><ArrowRight size={15} aria-hidden="true" />
-          </a>
+          </Link>
         ))}</div>
       </section>
       <ActivityChart transfers={dataset.transactions} />

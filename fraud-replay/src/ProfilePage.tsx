@@ -4,11 +4,11 @@ import { roles } from "./session";
 import type { Session } from "./session";
 import { PageHeading, PanelHeading } from "./ui";
 
-export default function ProfilePage({ session, theme, onToggleTheme, onExitDemo }: {
+export default function ProfilePage({ session, theme, onToggleTheme, onLogout }: {
   session: Session;
   theme: Theme;
   onToggleTheme: () => void;
-  onExitDemo: () => void;
+  onLogout: () => void;
 }) {
   return <>
     <PageHeading title="Профиль" description="Учётная запись и настройки интерфейса." />
@@ -20,9 +20,9 @@ export default function ProfilePage({ session, theme, onToggleTheme, onExitDemo 
         </div>
         <dl className="details-list">
           <div><dt>Роль</dt><dd>{roles[session.role]}</dd></div>
-          <div><dt>Тип сессии</dt><dd>{session.mode === "demo" ? "Демонстрационная" : "Рабочая"}</dd></div>
+          {session.organization && <div><dt>Организация</dt><dd>{session.organization}</dd></div>}
         </dl>
-        {session.mode === "demo" && <button type="button" className="button secondary" onClick={onExitDemo}><LogOut size={15} />Завершить демосессию</button>}
+        <button type="button" className="button secondary" onClick={onLogout}><LogOut size={15} />Выйти</button>
       </section>
       <section className="panel">
         <PanelHeading title="Оформление" />

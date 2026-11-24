@@ -24,6 +24,7 @@
 .header-brand, .header-controls { display: flex; align-items: center; gap: 12px; }
 .header-controls { gap: 10px; }
 .header-control { position: relative; }
+.workspace-label { padding: 3px 6px; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-size: 10px; }
 .brand { display: inline-flex; align-items: center; gap: 9px; color: var(--text); font-size: 17px; font-weight: 720; letter-spacing: -.044em; white-space: nowrap; }
 .brand-mark { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 8px; color: var(--accent); background: var(--accent-surface); }
 
@@ -64,9 +65,7 @@
 
 .notification-button { position: relative; }
 .notification-button > i { position: absolute; width: 7px; height: 7px; top: 6px; right: 7px; background: var(--risk-high); border-radius: 50%; }
-.mode { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
-.mode i, .risk-badge i, .access-code i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.mode i { color: var(--accent); }
+.risk-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 .header-popover {
   position: absolute;
@@ -86,6 +85,7 @@
 .header-popover p { color: var(--muted); font-size: 12px; padding: 4px 2px 8px; }
 .popover-row { min-height: 35px; border-radius: 7px; padding: 6px 8px; font-size: 13px; }
 .popover-row:hover { background: var(--hover); }
+.popover-button { width: 100%; border: 0; background: transparent; color: var(--text); text-align: left; }
 .popover-account { display: grid; gap: 3px; padding: 1px 8px 10px; overflow-wrap: anywhere; }
 .popover-account span { color: var(--muted); font-size: 12px; }
 .profile-popover { width: 222px; }
@@ -329,10 +329,6 @@ select { padding-right: 18px; }
 .details-list > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
 .details-list dt { color: var(--muted); }
 .details-list dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
-.employee-name { display: grid; gap: 2px; }
-.employee-name small { color: var(--muted); font-size: 11px; font-weight: 450; }
-.access-code { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
-.access-code.enabled { color: var(--risk-low); }
 .profile-person { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; }
 .profile-person > span { margin-bottom: 0; }
 .profile-person p { margin-top: 2px; font-size: 12px; }
@@ -341,20 +337,22 @@ select { padding-right: 18px; }
 .login { display: grid; grid-template-rows: var(--header-height) 1fr; min-height: 100dvh; }
 .login-header { padding-inline: clamp(16px, 4vw, 48px); }
 .login-main { width: min(100%, 980px); display: grid; grid-template-columns: 1fr minmax(315px, 430px); align-items: center; justify-self: center; gap: clamp(24px, 6vw, 76px); padding: 35px 24px 55px; }
-.login-intro { align-self: center; animation: enter 220ms ease both; }
-.login-intro h1 { font-size: clamp(27px, 4.5vw, 42px); }
-.login-intro p { color: var(--muted); margin-top: 9px; max-width: 35ch; }
 .login-panel { padding: 22px; }
 .login-key { display: grid; place-items: center; width: 39px; height: 39px; margin-bottom: 13px; border-radius: 9px; background: var(--accent-surface); color: var(--accent); }
 .login-panel h2 { font-size: 19px; }
 .login-panel p { font-size: 12px; margin-top: 4px; }
-.login-panel .login-status { margin: 12px 0; color: var(--muted); }
-.login-retry { width: 100%; }
-.demo-select { display: grid; gap: 6px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--border); }
-.demo-select p { margin: 0 0 4px; }
-.demo-select button { display: flex; min-height: 34px; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--raised); color: var(--text); text-align: left; font-size: 12px; transition: background var(--duration), border-color var(--duration); }
-.demo-select button:hover { background: var(--accent-surface); border-color: var(--accent); }
-.demo-select button svg { color: var(--accent); }
+.login-panel .login-status { margin-top: 13px; color: var(--muted); }
+.auth-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; padding: 3px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 9px; background: var(--raised); }
+.auth-switch a { padding: 7px; border-radius: 6px; color: var(--muted); font-size: 12px; font-weight: 650; text-align: center; transition: background var(--duration), color var(--duration); }
+.auth-switch a:hover { color: var(--text); }
+.auth-switch a[aria-current="page"] { background: var(--accent-surface); color: var(--accent); }
+.auth-form { display: grid; gap: 11px; margin-top: 15px; }
+.auth-form label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+.auth-form label > span { display: block; font-size: 11px; font-weight: 450; }
+.auth-form input { width: 100%; min-height: 36px; padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: var(--control-radius); background: var(--raised); color: var(--text); }
+.auth-form .error { margin: 0; }
+.auth-form .button { margin-top: 3px; }
+.registration-info .button { margin-top: 15px; }
 
 @keyframes enter { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -383,7 +381,6 @@ select { padding-right: 18px; }
   .brand { font-size: 15px; gap: 6px; }
   .brand-mark { display: none; }
   .header-controls .icon-button { width: 30px; }
-  .header-controls .mode { font-size: 10px; padding: 3px 5px; }
   .profile-chevron { display: none; }
   .header-popover { right: -37px; }
   .profile-popover { right: 0; }

@@ -1,20 +1,13 @@
-import type { Employee } from "./Administration";
-import type { Dataset, Investigation, RiskLevel, Transfer } from "./api";
-import type { Role, Session } from "./session";
+import type { Dataset, Investigation, RiskLevel, Transfer } from "../api";
+import type { Role, Session } from "../session";
 
-export const demoProfiles: Record<Role, Session> = {
-  admin: { mode: "demo", role: "admin", name: "Данияр Алтынов", email: "admin@example.test" },
-  analyst: { mode: "demo", role: "analyst", name: "Алекс Морган", email: "analyst@example.test" },
-  viewer: { mode: "demo", role: "viewer", name: "Айжан Садыкова", email: "viewer@example.test" },
+export const devProfiles: Record<Role, Session> = {
+  admin: { role: "admin", name: "Данияр Алтынов", email: "admin@example.test" },
+  analyst: { role: "analyst", name: "Алекс Морган", email: "analyst@example.test" },
+  viewer: { role: "viewer", name: "Айжан Садыкова", email: "viewer@example.test" },
 };
 
-export const demoEmployees: Employee[] = [
-  ...Object.values(demoProfiles).map((profile) => ({ id: profile.role, name: profile.name, email: profile.email ?? "", role: profile.role, active: true })),
-  { id: "employee-04", name: "Марат Искаков", email: "marat@example.test", role: "analyst", active: true },
-  { id: "employee-05", name: "Алия Бекова", email: "aliya@example.test", role: "viewer", active: false },
-];
-
-// Isolated synthetic snapshot. The server remains the only source of real risk analysis.
+// A fixed synthetic snapshot for local UI checks.
 const volumes = [36, 44, 39, 53, 48, 40, 47, 61, 56, 45, 67, 57, 70, 64];
 const signals = [2, 4, 3, 5, 4, 3, 5, 6, 7, 4, 8, 6, 10, 8];
 const patterns = [
@@ -74,9 +67,9 @@ volumes.forEach((volume, day) => {
   });
 });
 
-export const demoDataset: Dataset = { dataset_id: 1, source: "Демонстрационный набор", transactions, cases };
+export const devDataset: Dataset = { dataset_id: "dev-fixture", source: "Тестовый набор", transactions, cases };
 
-export function demoCsv() {
+export function devCsv() {
   return [
     "transaction_id,timestamp,sender,receiver,amount",
     ...transactions.map((item) => [

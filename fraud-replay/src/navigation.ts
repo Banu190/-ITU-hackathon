@@ -27,6 +27,5 @@ export const pagesByRole: Record<Role, readonly Page[]> = {
 };
 
 export function linkTo(page: Page, caseId?: string) {
-  if (page === "dashboard") return "#/";
-  return `#/${page}${caseId ? `/${encodeURIComponent(caseId)}` : ""}`;
+  return `/${page}${caseId ? `/${encodeURIComponent(caseId)}` : ""}`;
 }
