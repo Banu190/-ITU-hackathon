@@ -63,7 +63,7 @@ export default function TransferGraph({ transactions, visibleCount = transaction
     const latest = group[group.length - 1];
     const active = group.some((tx) => tx.transaction_id === selectedId);
     const blocked = group.filter((tx) => affected?.has(tx.transaction_id)).length;
-    const color = blocked ? "#fba268" : active ? "#8ee4ff" : "#668eb7";
+    const color = blocked ? "var(--risk-medium)" : active ? "var(--chart-primary)" : "var(--graph-edge)";
     const label = group.length === 1 ? formatAmount(latest.amount_tiyn) : `Переводов: ${group.length}`;
     return {
       id, source: latest.sender, target: latest.receiver, type: "smoothstep",
@@ -71,8 +71,8 @@ export default function TransferGraph({ transactions, visibleCount = transaction
       label: blocked ? `${label} · остановлено ${blocked}` : label,
       ariaLabel: `${latest.sender} → ${latest.receiver} · ${label}`,
       style: { stroke: color, strokeWidth: active ? 3 : 2, strokeDasharray: blocked ? "6 4" : undefined },
-      labelStyle: { fill: "#e2eaf5", fontSize: 11 },
-      labelBgStyle: { fill: "#111e32" },
+      labelStyle: { fill: "var(--text)", fontSize: 11 },
+      labelBgStyle: { fill: "var(--panel)" },
       markerEnd: { type: MarkerType.ArrowClosed, color },
     };
   });
@@ -86,7 +86,6 @@ export default function TransferGraph({ transactions, visibleCount = transaction
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          style={{ colorScheme: "dark" }}
           fitView
           fitViewOptions={{ padding: "28px", maxZoom: 1.15 }}
           minZoom={0.05}
@@ -103,7 +102,7 @@ export default function TransferGraph({ transactions, visibleCount = transaction
           }}
           onPaneClick={() => setAccount("")}
         >
-          <Background gap={18} color="#294057" />
+          <Background gap={18} color="var(--graph-grid)" />
           <Controls showInteractive={false} aria-label="Масштаб графа" />
         </ReactFlow>
       </div>

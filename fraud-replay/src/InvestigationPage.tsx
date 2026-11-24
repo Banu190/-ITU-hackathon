@@ -1,27 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { caseEndpoint, errorMessage, formatAmount, formatDate, request } from "./api";
+import { Download, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
+import { caseEndpoint, downloadCaseReport, errorMessage, formatAmount, formatDate, request } from "./api";
 import type { Dataset, Investigation, Simulation, Transfer } from "./api";
+import { linkTo } from "./navigation";
 import TransferGraph from "./TransferGraph";
 import { RiskBadge, TransferDetails, TransfersTable } from "./TransactionsPage";
 
 export type CasePage = "investigation" | "graph" | "replay";
 
-export function CaseList({ cases }: { cases: Investigation[] }) {
-  if (!cases.length) return <p className="empty">Операций с риском от 45 баллов пока нет. <a href="#/transactions">Загрузить другой набор</a></p>;
-  return (
-    <div className="case-list">
-      {cases.map((item) => (
-        <a key={item.case_id} className="case-card" href={`#/investigation/${item.case_id}`}>
-          <div><strong>{item.case_id}</strong><p>{item.reasons.join(" · ")}</p></div>
-          <div className="case-meta"><RiskBadge level={item.risk_level} score={item.risk_score} />
-            <small>Для проверки: {item.suspicious_transactions.length}</small></div>
-        </a>
-      ))}
-    </div>
-  );
-}
-
-function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint: string }) {
+function Replay({ transactions, endpoint, showWhatIf = false }: { transactions: Transfer[]; endpoint: string; showWhatIf?: boolean }) {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [simulation, setSimulation] = useState<Simulation | null>(null);
@@ -88,16 +75,16 @@ function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint
         <TransferGraph transactions={transactions} visibleCount={step} selectedId={selected?.transaction_id}
           affected={affected} onSelect={select} />
         <div className="toolbar replay-controls">
-          <button className="button" onClick={() => {
+          <button className="button" disabled={!last} onClick={() => {
             if (playing) setPlaying(false);
             else {
               if (step === last) setStep(0);
               setPlaying(true);
             }
-          }}>{playing ? "Пауза" : "Старт"}</button>
-          <button className="button secondary" disabled={step === 0} onClick={() => jump(step - 1)}>← Шаг</button>
-          <button className="button secondary" disabled={step === last} onClick={() => jump(step + 1)}>Шаг →</button>
-          <button className="button secondary" onClick={() => jump(0)}>Сначала</button>
+          }}>{playing ? <Pause size={15} /> : <Play size={15} />}{playing ? "Пауза" : "Старт"}</button>
+          <button className="button secondary" aria-label="Предыдущий шаг" disabled={step === 0} onClick={() => jump(step - 1)}><SkipBack size={15} /></button>
+          <button className="button secondary" aria-label="Следующий шаг" disabled={step === last} onClick={() => jump(step + 1)}><SkipForward size={15} /></button>
+          <button className="button secondary" aria-label="Сначала" disabled={!step} onClick={() => jump(0)}><RotateCcw size={15} /></button>
           <input type="range" min={0} max={last} value={step} aria-label="Шаг воспроизведения"
             onChange={(event) => jump(Number(event.target.value))} />
         </div>
@@ -123,7 +110,7 @@ function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint
           {selected ? <TransferDetails transfer={selected} onSelect={select} />
             : <><h2>Детали события</h2><p className="muted">Запустите Replay или выберите перевод на шкале.</p></>}
         </section>
-        <section className="panel">
+        {showWhatIf && <section className="panel">
           <h2>What-if</h2>
           <p className="muted">Проверьте, какие последующие переводы в цепочке затронет условная остановка выбранной операции.</p>
           <button className="button" disabled={!selected || busy} onClick={() => selected && void runSimulation(selected)}>
@@ -137,18 +124,20 @@ function Replay({ transactions, endpoint }: { transactions: Transfer[]; endpoint
             <p className="muted">Модель следует найденным связям по сумме и времени. Оборот включает звенья одной цепочки.</p>
             <button className="text-button" disabled={busy} onClick={() => { setSimulation(null); setError(""); }}>Сбросить симуляцию</button>
           </div>}
-        </section>
+        </section>}
       </div>
     </div>
   );
 }
 
-export default function InvestigationPage({ dataset, investigation, page }: {
+export default function InvestigationPage({ dataset, investigation, page, readOnly, demo }: {
   dataset: Dataset;
   investigation: Investigation;
   page: CasePage;
+  readOnly: boolean;
+  demo: boolean;
 }) {
-  const [selectedId, setSelectedId] = useState(investigation.suspicious_transactions[0]);
+  const [selectedId, setSelectedId] = useState(investigation.suspicious_transactions[0] ?? investigation.transaction_ids[0]);
   const ids = new Set(investigation.transaction_ids);
   const transactions = dataset.transactions.filter((tx) => ids.has(tx.transaction_id));
   const selected = transactions.find((tx) => tx.transaction_id === selectedId);
@@ -158,17 +147,7 @@ export default function InvestigationPage({ dataset, investigation, page }: {
     setReportBusy(true);
     setReportError("");
     try {
-      const response = await fetch(`${endpoint}/report.pdf`);
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(typeof body?.detail === "string" ? body.detail : "Не удалось подготовить PDF.");
-      }
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `fraud-replay-${dataset.dataset_id}-${investigation.case_id}.pdf`;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadCaseReport(dataset, investigation);
     } catch (failure) {
       setReportError(errorMessage(failure));
     } finally {
@@ -181,29 +160,31 @@ export default function InvestigationPage({ dataset, investigation, page }: {
 
   return (
     <>
-      <section className="panel">
+      <section className="panel case-overview">
         <div className="section-header">
           <div><h2>{investigation.case_id}</h2><p>{investigation.reasons.join(" · ")}</p></div>
           <RiskBadge level={investigation.risk_level} score={investigation.risk_score} />
         </div>
         <div className="toolbar case-toolbar">
           <label>Расследование
-            <select value={investigation.case_id} onChange={(event) => { window.location.hash = `#/${page}/${event.target.value}`; }}>
+            <select value={investigation.case_id} onChange={(event) => { window.location.hash = linkTo(page, event.target.value); }}>
               {dataset.cases.map((item) => <option key={item.case_id} value={item.case_id}>{item.case_id} · {item.risk_score}/100</option>)}
             </select>
           </label>
-          <a className="button secondary" href={`#/investigation/${investigation.case_id}`} aria-current={page === "investigation" ? "page" : undefined}>Детали</a>
-          <a className="button secondary" href={`#/graph/${investigation.case_id}`} aria-current={page === "graph" ? "page" : undefined}>Граф</a>
-          <a className="button secondary" href={`#/replay/${investigation.case_id}`} aria-current={page === "replay" ? "page" : undefined}>Replay</a>
-          <button className="button" disabled={reportBusy} onClick={() => void downloadReport()}>
-            {reportBusy ? "Формируем PDF…" : "Скачать PDF"}
-          </button>
+          {!readOnly && <div className="case-tabs">
+            <a className="button secondary" href={linkTo("investigation", investigation.case_id)} aria-current={page === "investigation" ? "page" : undefined}>Детали</a>
+            <a className="button secondary" href={linkTo("graph", investigation.case_id)} aria-current={page === "graph" ? "page" : undefined}>Граф</a>
+            <a className="button secondary" href={linkTo("replay", investigation.case_id)} aria-current={page === "replay" ? "page" : undefined}>Replay</a>
+          </div>}
+          {!readOnly && !demo && <button className="button case-report" disabled={reportBusy} onClick={() => void downloadReport()}>
+            <Download size={15} />{reportBusy ? "Формируем PDF…" : "Скачать PDF"}
+          </button>}
         </div>
         {reportError && <p className="error" role="alert">{reportError}</p>}
       </section>
 
       {page === "replay" ? <Replay transactions={transactions} endpoint={endpoint} /> : (
-        <div className="workspace">
+        <div className={`workspace ${page === "graph" ? "graph-workspace" : ""}`}>
           <section className="panel">
             {page === "graph" ? <>
               <h2>Связи между счетами</h2>

@@ -1,4 +1,5 @@
 export type RiskLevel = "low" | "medium" | "high";
+export const riskLabels: Record<RiskLevel, string> = { low: "Низкий", medium: "Средний", high: "Высокий" };
 
 export type Transfer = {
   transaction_id: string;
@@ -39,10 +40,19 @@ export type Simulation = {
   affected_turnover_tiyn: number;
 };
 
+export class RequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export async function request<T>(url: string, options?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(url, options);
+    response = await fetch(url, { credentials: "same-origin", ...options });
   } catch (error) {
     if (options?.signal?.aborted) throw error;
     throw new Error("Не удалось подключиться к серверу Fraud Replay.");
@@ -52,7 +62,7 @@ export async function request<T>(url: string, options?: RequestInit): Promise<T>
     const fallback = response.status >= 500
       ? "Сервер Fraud Replay недоступен. Проверьте запуск backend."
       : `Запрос завершился ошибкой (${response.status}).`;
-    throw new Error(typeof body?.detail === "string" ? body.detail : fallback);
+    throw new RequestError(typeof body?.detail === "string" ? body.detail : fallback, response.status);
   }
   return response.json();
 }
@@ -63,6 +73,24 @@ export function errorMessage(error: unknown) {
 
 export function caseEndpoint(dataset: Dataset, investigation: Investigation) {
   return `/api/datasets/${dataset.dataset_id}/cases/${investigation.case_id}`;
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function downloadCaseReport(dataset: Dataset, investigation: Investigation) {
+  const response = await fetch(`${caseEndpoint(dataset, investigation)}/report.pdf`, { credentials: "same-origin" });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new RequestError(typeof body?.detail === "string" ? body.detail : "Не удалось подготовить PDF.", response.status);
+  }
+  downloadBlob(await response.blob(), `fraud-replay-${dataset.dataset_id}-${investigation.case_id}.pdf`);
 }
 
 const amountFormat = new Intl.NumberFormat("ru-KZ", { maximumFractionDigits: 2 });
