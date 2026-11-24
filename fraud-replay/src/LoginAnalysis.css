@@ -10,6 +10,7 @@
 }
 
 .login-analysis-visual { position: relative; background: var(--row); }
+:root:not([data-theme="light"]) .login-analysis-visual { background: var(--canvas); }
 .login-analysis-pause { position: absolute; top: 5px; right: 5px; background: var(--panel); }
 .login-analysis-graph { display: block; width: 100%; height: auto; max-height: 213px; }
 
