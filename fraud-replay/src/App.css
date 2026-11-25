@@ -294,9 +294,12 @@ select { padding-right: 18px; }
 .reason-heading span, .affected { color: var(--risk-medium); white-space: nowrap; }
 .reasons p, .simulation p { margin: 4px 0; color: var(--muted); font-size: 12px; }
 .related { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 5px; color: var(--muted); font-size: 11px; }
-.graph-canvas { isolate: isolate; height: clamp(275px, 43vh, 480px); margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--row); }
+.graph-canvas { isolation: isolate; height: clamp(275px, 43vh, 480px); margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--row); }
 .graph-workspace .graph-canvas { height: clamp(380px, 57vh, 630px); }
 .graph-canvas .react-flow__node.account-node { padding: 8px 6px; color: var(--text); background: var(--raised); border: 1px solid var(--border-strong); border-radius: 8px; overflow-wrap: anywhere; font-family: inherit; }
+.graph-canvas .react-flow__node.account-client { border-color: var(--chart-primary); background: var(--accent-surface); }
+.graph-canvas .react-flow__node.account-intermediary { border-color: var(--risk-medium); background: var(--risk-medium-bg); }
+.graph-canvas .react-flow__node.account-suspicious { border-color: var(--risk-high); background: var(--risk-high-bg); }
 .graph-canvas .react-flow__node.highlighted { background: var(--accent-surface); border-color: var(--accent); }
 .graph-canvas .react-flow__node.future { opacity: .48; }
 .graph-canvas .react-flow__controls {
@@ -306,7 +309,15 @@ select { padding-right: 18px; }
   --xy-controls-button-color-hover: var(--accent);
   --xy-controls-button-border-color: var(--border-strong);
 }
+.graph-legend { display: flex; flex-wrap: wrap; gap: 7px 16px; margin: 9px 0; color: var(--muted); font-size: 11px; }
+.graph-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend-dot { width: 9px; height: 9px; display: inline-block; border-radius: 50%; border: 1px solid var(--border-strong); }
+.legend-dot.client { background: var(--chart-primary); }
+.legend-dot.intermediary { background: var(--risk-medium); }
+.legend-dot.suspicious { background: var(--risk-high); }
 .account-selection { margin: 12px 0; }
+.account-totals { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.account-totals strong { color: var(--text); }
 .replay-controls { align-items: center; }
 .replay-controls input { min-width: 70px; flex: 1 1 120px; accent-color: var(--accent); }
 .timeline { list-style: none; padding: 0; margin: 13px 0 0; max-height: 290px; overflow: auto; }
@@ -395,4 +406,89 @@ select { padding-right: 18px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+
+
+.graph-canvas .react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 9 6;
+  animation: transfer-flow 0.8s linear infinite;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.graph-canvas .react-flow__edge.animated {
+  z-index: 10;
+}
+
+.graph-canvas .react-flow__edge-path {
+  transition:
+    stroke 0.3s ease,
+    stroke-width 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.graph-canvas .react-flow__node.highlighted {
+  box-shadow:
+    0 0 0 2px var(--accent-surface),
+    0 0 15px color-mix(in srgb, var(--accent) 35%, transparent);
+  transition:
+    box-shadow 0.3s ease,
+    background 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.graph-canvas .react-flow__node.account-node {
+  transition:
+    opacity 0.3s ease,
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.graph-canvas .react-flow__node.account-suspicious {
+  box-shadow: 0 0 10px
+    color-mix(in srgb, var(--risk-high) 22%, transparent);
+}
+
+.graph-canvas .react-flow__edge.animated .react-flow__edge-path {
+  stroke-width: 3.5px;
+}
+
+.graph-canvas .react-flow__edge-text {
+  font-weight: 650;
+  letter-spacing: 0.1px;
+}
+
+@keyframes transfer-flow {
+  from {
+    stroke-dashoffset: 30;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Анимация выделения подозрительного счёта */
+@keyframes suspicious-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px
+      color-mix(in srgb, var(--risk-high) 15%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 13px
+      color-mix(in srgb, var(--risk-high) 35%, transparent);
+  }
+}
+
+/* Поддержка пользователей, отключивших анимацию */
+@media (prefers-reduced-motion: reduce) {
+  .graph-canvas .react-flow__edge.animated .react-flow__edge-path {
+    animation: none !important;
+  }
+
+  .graph-canvas .react-flow__node.account-suspicious {
+    animation: none !important;
+  }
 }

@@ -14,6 +14,7 @@ export type Transfer = {
   amount_tiyn: number;
   risk_score: number;
   risk_level: RiskLevel;
+  previous_transfer_id?: string | null;
   reasons: {
     code: string;
     title: string;
