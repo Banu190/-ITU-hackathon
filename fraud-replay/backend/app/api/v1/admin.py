@@ -8,9 +8,38 @@ from sqlalchemy import select
 from app.api.v1.schemas import AuditEventOut, UserCreate, UserSummary
 from app.business_logic.admin import create_user, disable_user
 from app.core.dependencies import AdminPrincipal, DbSession
-from app.data_access.db.models import AuditEvent
+from app.data_access.db.models import AuditEvent, Membership, User
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
+
+
+@router.get("/users", response_model=list[UserSummary])
+async def list_organization_users(
+    session: DbSession,
+    principal: AdminPrincipal,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> list[UserSummary]:
+    statement = (
+        select(User, Membership)
+        .join(Membership, Membership.user_id == User.id)
+        .where(Membership.organization_id == principal.organization_id)
+        .order_by(User.created_at, User.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    rows = (await session.execute(statement)).all()
+    return [
+        UserSummary(
+            id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            is_active=user.is_active and membership.is_active,
+            role=membership.role,
+            created_at=user.created_at,
+        )
+        for user, membership in rows
+    ]
 
 
 @router.post("/users", response_model=UserSummary, status_code=status.HTTP_201_CREATED)
