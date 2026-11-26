@@ -18,7 +18,7 @@ test = [
 dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "fraud_engine*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"

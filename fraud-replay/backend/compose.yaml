@@ -34,8 +34,11 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      MODEL_DIR: /app/var/models
     ports:
       - "${PORT:-8000}:8000"
+    volumes:
+      - fraud_replay_models:/app/var/models
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -54,6 +57,9 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      MODEL_DIR: /app/var/models
+    volumes:
+      - fraud_replay_models:/app/var/models
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -62,3 +68,4 @@ services:
 
 volumes:
   fraud_replay_postgres:
+  fraud_replay_models:

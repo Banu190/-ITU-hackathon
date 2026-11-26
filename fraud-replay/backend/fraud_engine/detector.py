@@ -18,6 +18,25 @@ def analyze_csv(path: str) -> dict:
     return analyze_transactions(read_csv(path))
 
 
+def find_velocity_hits(txs):
+    """Return burst and fan-out hits from sorted, validated records."""
+    hits = []
+    senders = defaultdict(list)
+    for tx in txs:
+        senders[tx["sender"]].append(tx)
+    for outgoing in senders.values():
+        for rule, seconds, count in (("burst", 300, 4), ("fanout", 600, 3)):
+            left = 0
+            for right, tx in enumerate(outgoing):
+                while (datetime.fromisoformat(tx["timestamp"]) - datetime.fromisoformat(outgoing[left]["timestamp"])).total_seconds() > seconds:
+                    left += 1
+                window = outgoing[left:right+1]
+                size = len(window) if rule == "burst" else len({t["receiver"] for t in window})
+                if size >= count:
+                    hits.append(({t["transaction_id"] for t in window}, rule, REASONS[rule]))
+    return hits
+
+
 def analyze_transactions(transactions: list[dict]) -> dict:
     txs = normalize(transactions)
     by_id = {t["transaction_id"]: t for t in txs}
@@ -37,19 +56,7 @@ def analyze_transactions(transactions: list[dict]) -> dict:
                 hits.append(({tx["transaction_id"]}, "large", reason))
         for tx in batch:
             history[tx["sender"]].append(tx["amount"])
-    senders = defaultdict(list)
-    for tx in txs:
-        senders[tx["sender"]].append(tx)
-    for outgoing in senders.values():
-        for rule, seconds, count in (("burst", 300, 4), ("fanout", 600, 3)):
-            left = 0
-            for right, tx in enumerate(outgoing):
-                while (datetime.fromisoformat(tx["timestamp"]) - datetime.fromisoformat(outgoing[left]["timestamp"])).total_seconds() > seconds:
-                    left += 1
-                window = outgoing[left:right+1]
-                size = len(window) if rule == "burst" else len({t["receiver"] for t in window})
-                if size >= count:
-                    hits.append(({t["transaction_id"] for t in window}, rule, REASONS[rule]))
+    hits.extend(find_velocity_hits(txs))
     for chain in find_chains(txs):
         hits.append((set(chain), "chain", REASONS["chain"]))
     links = nx.Graph()

@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-from datetime import timedelta
 from statistics import median
 
 import numpy as np
 
-from app.fraud_detection.graph_analyzer import find_transfer_chains
+from fraud_engine.detector import find_velocity_hits
+
+from app.fraud_detection.graph_analyzer import find_transfer_chains, to_engine_rows
 from app.fraud_detection.schemas import DetectionSignal, TransactionRecord
 
-RULE_VERSION = "rules-1.0.0"
+RULE_VERSION = "rules-1.1.0"
 
 
 def _ordered_ids(transactions: Iterable[TransactionRecord]) -> tuple[str, ...]:
@@ -63,76 +64,49 @@ def large_transactions(transactions: list[TransactionRecord]) -> list[DetectionS
     return signals
 
 
-def transaction_bursts(transactions: list[TransactionRecord]) -> list[DetectionSignal]:
-    grouped: dict[str, list[TransactionRecord]] = defaultdict(list)
-    for tx in transactions:
-        grouped[tx.sender].append(tx)
+def _velocity_signals(transactions: list[TransactionRecord]) -> list[DetectionSignal]:
+    records = {tx.external_id: tx for tx in transactions}
     signals: list[DetectionSignal] = []
-    seen: set[tuple[str, ...]] = set()
-    window = timedelta(minutes=5)
-    for sender, outgoing in grouped.items():
-        left = 0
-        for right, tx in enumerate(outgoing):
-            while tx.timestamp - outgoing[left].timestamp > window:
-                left += 1
-            current = outgoing[left : right + 1]
-            if len(current) >= 4:
-                ids = _ordered_ids(current)
-                if ids not in seen:
-                    seen.add(ids)
-                    signals.append(
-                        DetectionSignal(
-                            "transaction_burst",
-                            "Transaction Burst",
-                            "Отправитель выполнил не менее четырёх переводов за пять минут.",
-                            {"sender": sender, "count": len(current), "window_seconds": 300},
-                            ids,
-                            25,
-                            RULE_VERSION,
-                            tx.external_id,
-                        )
-                    )
+    for members, rule, _reason in find_velocity_hits(to_engine_rows(transactions)):
+        ordered = sorted(
+            (records[identifier] for identifier in members),
+            key=lambda tx: (tx.timestamp, tx.external_id),
+        )
+        ids = tuple(tx.external_id for tx in ordered)
+        sender = ordered[-1].sender
+        if rule == "burst":
+            signal = DetectionSignal(
+                "transaction_burst",
+                "Transaction Burst",
+                "Отправитель выполнил не менее четырёх переводов за пять минут.",
+                {"sender": sender, "count": len(ids), "window_seconds": 300},
+                ids,
+                25,
+                RULE_VERSION,
+                ordered[-1].external_id,
+            )
+        else:
+            signal = DetectionSignal(
+                "fan_out",
+                "Fan-Out",
+                "Средства распределены между несколькими получателями за короткий период.",
+                {"sender": sender, "unique_receivers": len({tx.receiver for tx in ordered}),
+                 "window_seconds": 600},
+                ids,
+                35,
+                RULE_VERSION,
+                ordered[-1].external_id,
+            )
+        signals.append(signal)
     return signals
+
+
+def transaction_bursts(transactions: list[TransactionRecord]) -> list[DetectionSignal]:
+    return [s for s in _velocity_signals(transactions) if s.rule_code == "transaction_burst"]
 
 
 def fan_out(transactions: list[TransactionRecord]) -> list[DetectionSignal]:
-    grouped: dict[str, list[TransactionRecord]] = defaultdict(list)
-    for tx in transactions:
-        grouped[tx.sender].append(tx)
-    signals: list[DetectionSignal] = []
-    seen: set[tuple[str, ...]] = set()
-    window = timedelta(minutes=10)
-    for sender, outgoing in grouped.items():
-        left = 0
-        for right, tx in enumerate(outgoing):
-            while tx.timestamp - outgoing[left].timestamp > window:
-                left += 1
-            current = outgoing[left : right + 1]
-            receivers = {item.receiver for item in current}
-            if len(receivers) >= 3:
-                ids = _ordered_ids(current)
-                if ids not in seen:
-                    seen.add(ids)
-                    signals.append(
-                        DetectionSignal(
-                            "fan_out",
-                            "Fan-Out",
-                            (
-                                "Средства распределены между несколькими получателями "
-                                "за короткий период."
-                            ),
-                            {
-                                "sender": sender,
-                                "unique_receivers": len(receivers),
-                                "window_seconds": 600,
-                            },
-                            ids,
-                            35,
-                            RULE_VERSION,
-                            tx.external_id,
-                        )
-                    )
-    return signals
+    return [s for s in _velocity_signals(transactions) if s.rule_code == "fan_out"]
 
 
 def new_beneficiaries(transactions: list[TransactionRecord]) -> list[DetectionSignal]:
@@ -231,8 +205,7 @@ def run_rules(transactions: list[TransactionRecord]) -> list[DetectionSignal]:
     ordered = sorted(transactions, key=lambda tx: (tx.timestamp, tx.external_id))
     signals = [
         *large_transactions(ordered),
-        *transaction_bursts(ordered),
-        *fan_out(ordered),
+        *_velocity_signals(ordered),
         *transfer_chains(ordered),
         *new_beneficiaries(ordered),
         *unusual_activity(ordered),

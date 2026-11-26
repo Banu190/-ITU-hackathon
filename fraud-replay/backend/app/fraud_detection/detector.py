@@ -13,7 +13,7 @@ from app.fraud_detection.schemas import (
     TransactionRecord,
 )
 
-ENGINE_VERSION = "fraud-replay-1.0.0"
+ENGINE_VERSION = "fraud-replay-1.1.0"
 
 
 class FraudDetectionEngine:

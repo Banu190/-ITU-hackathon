@@ -12,7 +12,7 @@ def build_graph(transactions):
     return graph
 
 
-def find_chains(transactions, max_depth=6, min_length=3, window_minutes=15):
+def find_chains(transactions, max_depth=6, min_length=3, window_minutes=15, *, max_paths=None):
     """Возвращает максимальные обнаруженные пути; глубина измеряется в переводах.
 
     Строго возрастающее время, без повторного посещения счета; окно на каждый шаг.
@@ -20,10 +20,14 @@ def find_chains(transactions, max_depth=6, min_length=3, window_minutes=15):
     """
     if not 1 <= min_length <= max_depth <= 12 or window_minutes <= 0:
         raise ValueError("Требуется 1 <= min_length <= max_depth <= 12 и положительное окно")
+    if max_paths is not None and max_paths < 1:
+        raise ValueError("max_paths must be positive")
     graph = build_graph(transactions)
     paths = set()
 
     def visit(path, visited):
+        if max_paths is not None and len(paths) >= max_paths:
+            return
         previous = path[-1]
         candidates = []
         if len(path) < max_depth:
@@ -38,6 +42,8 @@ def find_chains(transactions, max_depth=6, min_length=3, window_minutes=15):
             paths.add(tuple(t["transaction_id"] for t in path))
 
     for tx in transactions:
+        if max_paths is not None and len(paths) >= max_paths:
+            break
         if tx["sender"] != tx["receiver"]:
             visit([tx], {tx["sender"], tx["receiver"]})
     # Удаляем вложенные пути, оставляя отдельные ветви и пути с разными переводами.
