@@ -2,7 +2,7 @@ name: Backend CI
 
 on:
   push:
-    branches: [backend]
+    branches: [master, backend]
     paths:
       - "fraud-replay/backend/**"
       - ".github/workflows/backend-ci.yml"
