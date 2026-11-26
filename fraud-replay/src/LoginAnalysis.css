@@ -1,0 +1,125 @@
+.login-analysis { min-width: 0; align-self: center; }
+.login-analysis h1 { font-size: clamp(25px, 4vw, 36px); margin-bottom: 14px; }
+.login-analysis-description { margin-top: 12px; color: var(--muted); font-size: 13px; max-width: 41ch; }
+
+.login-analysis-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  background: var(--panel);
+}
+
+.login-analysis-visual { position: relative; background: var(--row); }
+:root:not([data-theme="light"]) .login-analysis-visual { background: var(--canvas); }
+.login-analysis-pause { position: absolute; top: 5px; right: 5px; background: var(--panel); }
+.login-analysis-graph { display: block; width: 100%; height: auto; max-height: 213px; }
+
+.analysis-grid-dot { fill: var(--graph-grid); opacity: .62; }
+.analysis-surface { fill: var(--raised); stroke: var(--border-strong); }
+.analysis-guide { fill: none; stroke: var(--border-strong); stroke-width: .75; stroke-dasharray: 3 4; }
+.analysis-line { fill: none; stroke: var(--graph-edge); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+.analysis-line.accent { stroke: var(--chart-primary); stroke-width: 1.7; }
+.analysis-placeholder { stroke: var(--graph-edge); stroke-width: 2; stroke-linecap: round; opacity: .65; }
+.analysis-transaction-dot, .analysis-monitor-probe, .analysis-event-dot { fill: var(--chart-primary); }
+.analysis-transaction-dot { opacity: .62; }
+.analysis-text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.analysis-account-icon { fill: none; stroke: var(--accent); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+.analysis-risk { fill: none; stroke: var(--risk-high); stroke-width: 1.4; }
+.analysis-risk .analysis-line { stroke: inherit; stroke-width: inherit; }
+.analysis-graph-probe { fill: var(--risk-high); }
+.analysis-replay-progress { stroke-dasharray: 1; }
+
+.login-analysis-detail {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 11px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.login-analysis-copy { display: grid; flex: 1; min-width: 0; }
+.login-analysis-copy > div { grid-area: 1 / 1; }
+.login-analysis-copy h2 { font-size: 13px; line-height: 1.28; }
+.login-analysis-copy p { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.login-analysis-indicators { display: flex; gap: 5px; align-items: center; min-height: 19px; }
+.login-analysis-indicator, .login-analysis-indicators button > span {
+  position: relative;
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.login-analysis-indicator > span { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); }
+.login-analysis-indicators button { display: grid; place-items: center; width: 22px; height: 25px; padding: 0; border: 0; background: transparent; }
+.login-analysis-indicators button[aria-pressed="true"] > span { background: var(--accent); }
+
+.login-analysis-layer { animation: analysis-stage var(--analysis-cycle) var(--stage-delay) linear infinite both; }
+.analysis-monitor-probe { animation: analysis-monitor var(--analysis-cycle) var(--stage-delay) linear infinite both; }
+.analysis-risk { animation: analysis-alert var(--analysis-cycle) var(--stage-delay) ease-in-out infinite both; }
+.analysis-graph-probe { animation: analysis-transfer var(--analysis-cycle) var(--stage-delay) linear infinite both; }
+.analysis-replay-progress { animation: analysis-replay var(--analysis-cycle) var(--stage-delay) ease-out infinite both; }
+.analysis-event-dot { animation: analysis-event var(--analysis-cycle) calc(var(--stage-delay) + var(--event-delay)) ease-out infinite both; }
+
+.login-analysis[data-paused="true"] :is(.login-analysis-layer, .analysis-monitor-probe, .analysis-risk, .analysis-graph-probe, .analysis-replay-progress, .analysis-event-dot) {
+  animation-play-state: paused;
+}
+
+@keyframes analysis-stage {
+  0%, 30.3%, 100% { opacity: 1; }
+  33.3333%, 96.9666% { opacity: 0; }
+}
+
+@keyframes analysis-monitor {
+  0%, 3% { transform: translate(0, 0); }
+  7% { transform: translate(30px, -15px); }
+  11% { transform: translate(59px, -8px); }
+  15% { transform: translate(88px, -36px); }
+  19% { transform: translate(117px, -30px); }
+  23% { transform: translate(147px, -53px); }
+  28%, 100% { transform: translate(182px, -64px); }
+}
+
+@keyframes analysis-alert {
+  0%, 8% { opacity: 0; }
+  17%, 100% { opacity: 1; }
+}
+
+@keyframes analysis-transfer {
+  0%, 6% { transform: translate(0, 0); opacity: 0; }
+  10% { transform: translate(25px, 10px); opacity: 1; }
+  14% { transform: translate(48px, 31px); opacity: 1; }
+  19%, 100% { transform: translate(75px, 41px); opacity: 0; }
+}
+
+@keyframes analysis-replay {
+  0%, 3% { stroke-dashoffset: 1; }
+  23%, 100% { stroke-dashoffset: 0; }
+}
+
+@keyframes analysis-event {
+  0%, 2% { opacity: 0; }
+  5%, 30% { opacity: 1; }
+  34%, 100% { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .login-analysis-graph { max-height: 150px; }
+}
+
+@media (max-width: 420px) {
+  .login-analysis h1 { margin-bottom: 8px; }
+  .login-analysis-graph { max-height: 114px; }
+  .login-analysis-description { margin-top: 8px; }
+  .login-analysis-detail { padding: 8px 10px; }
+  .login-analysis-copy p { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-analysis :is(.login-analysis-layer, .analysis-monitor-probe, .analysis-risk, .analysis-graph-probe, .analysis-replay-progress, .analysis-event-dot) {
+    animation: none !important;
+  }
+  .analysis-monitor-probe { transform: translate(182px, -64px); }
+  .analysis-graph-probe { display: none; }
+}
